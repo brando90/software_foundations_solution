@@ -214,7 +214,9 @@ Proof.
 Theorem proj2 : forall P Q : Prop, 
   P /\ Q -> Q.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q H.
+  destruct H as [HP HQ].
+  apply HQ. Qed.
 (** [] *)
 
 Theorem and_commut : forall P Q : Prop, 
@@ -238,7 +240,12 @@ Theorem and_assoc : forall P Q R : Prop,
 Proof.
   intros P Q R H.
   destruct H as [HP [HQ HR]].
-(* FILL IN HERE *) Admitted.
+  split.
+  Case "left". split.
+  SCase "left". apply HP.
+  SCase "right". apply HQ.
+  Case "right". apply HR.
+Qed.
 (** [] *)
 
 
@@ -278,12 +285,22 @@ Proof.
 Theorem iff_refl : forall P : Prop, 
   P <-> P.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros P.
+  split.
+  Case "->". intros H. apply H.
+  Case "<-". intros H. apply H.
+Qed.
 
 Theorem iff_trans : forall P Q R : Prop, 
   (P <-> Q) -> (Q <-> R) -> (P <-> R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q R H0 H1.
+  destruct H0 as [HPQ HQP].
+  destruct H1 as [HQR HRQ].
+  split.
+  Case "->". intros H. apply HQR. apply HPQ. apply H.
+  Case "<-". intros H. apply HQP. apply HRQ. apply H.
+Qed.
 
 (** Hint: If you have an iff hypothesis in the context, you can use
     [inversion] to break it into two separate implications.  (Think
@@ -377,14 +394,31 @@ Proof.
 Theorem or_distributes_over_and_2 : forall P Q R : Prop,
   (P \/ Q) /\ (P \/ R) -> P \/ (Q /\ R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q R H0.
+  destruct H0 as [H1 H2].
+  destruct H1 as [HP1 | HQ].
+  Case "left". left. apply HP1.
+  Case "right". destruct H2 as [HP2 | HR].
+  SCase "left". left. apply HP2.
+  SCase "right". right. split. apply HQ. apply HR.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, optional (or_distributes_over_and)  *)
 Theorem or_distributes_over_and : forall P Q R : Prop,
   P \/ (Q /\ R) <-> (P \/ Q) /\ (P \/ R).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q R.
+  split.
+  Case "->". intros H0. inversion H0 as [HP | [HQ HR]].
+  SCase "left". split.
+  SSCase "left". left. apply HP.
+  SSCase "right". left. apply HP.
+  SCase "right". split.
+  SSCase "left". right. apply HQ.
+  SSCase "right". right. apply HR.
+  Case "<-". apply or_distributes_over_and_2.
+Qed.
 (** [] *)
 
 (* ################################################### *)
@@ -422,19 +456,38 @@ Proof.
 Theorem andb_false : forall b c,
   andb b c = false -> b = false \/ c = false.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros b c H0.
+  destruct b.
+  Case "true". destruct c.
+  SCase "true". inversion H0.
+  SCase "false". right. reflexivity.
+  Case "false". left. reflexivity.
+Qed.
 
 (** **** Exercise: 2 stars, optional (orb_false)  *)
 Theorem orb_prop : forall b c,
   orb b c = true -> b = true \/ c = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros b c H0.
+  destruct b.
+  Case "true". left. reflexivity.
+  Case "false". right. destruct c.
+  SCase "true". reflexivity.
+  SCase "false". inversion H0.
+Qed.
 
 (** **** Exercise: 2 stars, optional (orb_false_elim)  *)
 Theorem orb_false_elim : forall b c,
   orb b c = false -> b = false /\ c = false.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros b c H0.
+  destruct b.
+  Case "true". inversion H0.
+  Case "false". split. reflexivity.
+  destruct c.
+  SCase "true". inversion H0.
+  SCase "false". reflexivity.
+Qed.
 (** [] *)
 
 
@@ -504,7 +557,8 @@ Proof.
     intution is that [True] should be a proposition for which it is
     trivial to give evidence.) *)
 
-(* FILL IN HERE *)
+Inductive True : Prop :=
+  tt : True.
 (** [] *)
 
 (** However, unlike [False], which we'll use extensively, [True] is
@@ -570,14 +624,22 @@ Proof.
 Theorem contrapositive : forall P Q : Prop,
   (P -> Q) -> (~Q -> ~P).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros P Q HPQ.
+  unfold not.
+  intros HQF HP.
+  apply HQF. apply HPQ. apply HP.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star (not_both_true_and_false)  *)
 Theorem not_both_true_and_false : forall P : Prop,
   ~ (P /\ ~P).
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  unfold not.
+  intros P H.
+  destruct H as [HP HPF].
+  apply HPF. apply HP.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, advanced (informal_not_PNP)  *)
@@ -622,7 +684,66 @@ Definition de_morgan_not_and_not := forall P Q:Prop,
 Definition implies_to_or := forall P Q:Prop, 
   (P->Q) -> (~P\/Q). 
 
-(* FILL IN HERE *)
+Theorem excluded_middle__de_morgan_not_and_not:
+  excluded_middle -> de_morgan_not_and_not.
+Proof.
+  unfold excluded_middle. unfold de_morgan_not_and_not. unfold not.
+  intros He P Q HPFQFF.
+  remember (He P) as HP.
+  inversion HP.
+  Case "left". left. apply H.
+  Case "right". remember (He Q) as HQ.
+  inversion HQ.
+  SCase "left". right. apply H0.
+  SCase "right". apply ex_falso_quodlibet. apply HPFQFF. split. apply H. apply H0.
+Qed.
+
+Theorem implies_to_or__excluded_middle :
+  implies_to_or -> excluded_middle.
+Proof.
+  unfold implies_to_or. unfold excluded_middle. unfold not.
+  intros Hi P.
+  apply or_commut. apply Hi. intros HP. apply HP.
+Qed.
+
+Theorem classic__implies_to_or :
+  classic -> implies_to_or.
+Proof.
+  unfold classic. unfold implies_to_or. unfold not.
+  intros Hc P Q HPQ. apply Hc. intros HPFQF. apply HPFQF. left. intros HP. apply HPFQF. right. apply HPQ. apply HP.
+Qed.
+
+Theorem de_morgan_not_and_not__classic :
+  de_morgan_not_and_not -> classic.
+Proof.
+  unfold de_morgan_not_and_not. unfold classic. unfold not.
+  intros Hd P HPFF.
+  remember (Hd P False) as HPFQFFPQ.
+  assert (P \/ False -> P).
+  Case "Proof of assertion". intros. inversion H. apply H0. inversion H0.
+  apply H. apply HPFQFFPQ. intros HPFFF.
+  inversion HPFFF. apply HPFF. apply H0.
+Qed.
+
+(* Except peirce, every propositions are equivalent. *)
+
+Theorem peirce__classic :
+  peirce -> classic.
+Proof.
+  unfold peirce. unfold classic. unfold not.
+  intros Hp P HPFF. apply Hp with False. intros HPF. apply HPFF in HPF. inversion HPF.
+Qed.
+
+Theorem classic__peirce :
+  classic -> peirce.
+Proof.
+  unfold classic. unfold peirce. unfold not.
+  intros Hc P Q HPQP. apply Hc. intros HPF. apply HPF. apply HPQP. intros HP.
+  apply Hc. intros HQF. apply HPF. apply HP.
+Qed.
+
+(* Now, peirce is equivalent one, too. *)
+
 (** [] *)
 
 (** **** Exercise: 3 stars (excluded_middle_irrefutable)  *)
@@ -633,7 +754,12 @@ we would have both [~ (P \/ ~P)] and [~ ~ (P \/ ~P)], a contradiction. *)
 
 Theorem excluded_middle_irrefutable:  forall (P:Prop), ~ ~ (P \/ ~ P).  
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold not.
+  intros P HPPFF.
+  apply HPPFF.
+  right. intros HP. apply HPPFF.
+  left. apply HP.
+Qed.
 
 
 (* ########################################################## *)
@@ -678,14 +804,32 @@ Theorem false_beq_nat : forall n m : nat,
      n <> m ->
      beq_nat n m = false.
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  induction n as [| n0].
+  Case "n = 0". intros m Hneq. destruct m as [| m0].
+  SCase "m = 0". apply ex_falso_quodlibet. apply Hneq. reflexivity.
+  SCase "m = S m0". reflexivity.
+  Case "n = S n0". intros m Hneq. destruct m as [| m0].
+  SCase "m = 0". reflexivity.
+  SCase "m = S m0". simpl. apply IHn0. intros Heq. apply Hneq. rewrite Heq.
+  reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (beq_nat_false)  *)
 Theorem beq_nat_false : forall n m,
   beq_nat n m = false -> n <> m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n.
+  induction n as [| n0].
+  Case "n = 0". intros m Hbeqf Heq. destruct m as [| m0].
+  SCase "m = 0". inversion Hbeqf.
+  SCase "m = S m0". inversion Heq.
+  Case "n = S n0". intros m Hbeqf Heq. destruct m as [| m0].
+  SCase "m = 0". inversion Heq.
+  SCase "m = S m0". simpl in Hbeqf. apply IHn0 in Hbeqf. apply Hbeqf. inversion Heq.
+  reflexivity.
+Qed.
 (** [] *)
 
 
