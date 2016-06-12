@@ -100,6 +100,7 @@ Qed.
     mean? *)
 
 (* FILL IN HERE *)
+(* SKIPPED *)
 
 (*
 *)
@@ -110,7 +111,12 @@ Qed.
 Theorem dist_not_exists : forall (X:Type) (P : X -> Prop),
   (forall x, P x) -> ~ (exists x, ~ P x).
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros X P Hforall.
+  unfold not.
+  intros Hexists.
+  inversion Hexists as [x Hx].
+  apply Hx. apply Hforall.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (not_exists_dist)  *)
@@ -122,7 +128,14 @@ Theorem not_exists_dist :
   forall (X:Type) (P : X -> Prop),
     ~ (exists x, ~ P x) -> (forall x, P x).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros Hexcluded_middle.
+  intros X P HexistsFF x.
+  remember (Hexcluded_middle (P x)) as HPxTF. clear HeqHPxTF.
+  inversion HPxTF as [ HPxT | HPxF].
+  Case "True". apply HPxT.
+  Case "False". apply ex_falso_quodlibet. apply HexistsFF. 
+  exists x. apply HPxF.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars (dist_exists_or)  *)
@@ -132,7 +145,15 @@ Proof.
 Theorem dist_exists_or : forall (X:Type) (P Q : X -> Prop),
   (exists x, P x \/ Q x) <-> (exists x, P x) \/ (exists x, Q x).
 Proof.
-   (* FILL IN HERE *) Admitted.
+  intros X P Q. split.
+  Case "->". intros HePQ. inversion HePQ as [x HPQ].
+  inversion HPQ as [ HP | HQ].
+  SCase "HP". left. exists x. apply HP.
+  SCase "HQ". right. exists x. apply HQ.
+  Case "<-". intros HePeQ. inversion HePeQ as [ HeP | HeQ].
+  SCase "HeP". inversion HeP as [x HP]. exists x. left. apply HP.
+  SCase "HeQ". inversion HeQ as [x HQ]. exists x. right. apply HQ.
+Qed.
 (** [] *)
 
 (* ###################################################### *)
@@ -191,8 +212,8 @@ Proof.
       destruct IHn' with (m := m') as [eq | neq].
       left. apply f_equal.  apply eq.
       right. intros Heq. inversion Heq as [Heq']. apply neq. apply Heq'.
-Defined. 
-  
+Defined.
+
 (** Read as a theorem, this says that equality on [nat]s is decidable:
     that is, given two [nat] values, we can always produce either
     evidence that they are equal or evidence that they are not.  Read
@@ -235,7 +256,11 @@ Proof.
 Theorem override_shadow' : forall (X:Type) x1 x2 k1 k2 (f : nat->X),
   (override' (override' f k1 x2) k1 x1) k2 = (override' f k1 x1) k2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x1 x2 k1 k2 f.
+  unfold override'.
+  destruct (eq_nat_dec k1 k2).
+  Case "left". reflexivity.
+  Case "right". reflexivity.
 (** [] *)
 
 
@@ -250,8 +275,9 @@ Proof.
     type [X] and a property [P : X -> Prop], such that [all X P l]
     asserts that [P] is true for every element of the list [l]. *)
 
-Inductive all (X : Type) (P : X -> Prop) : list X -> Prop :=
-  (* FILL IN HERE *)
+Inductive all {X : Type} (P : X -> Prop) : list X -> Prop :=
+| allnil : all P []
+| allcons : forall h t, P h -> all P t -> all P (h::t)
 .
 
 (** Recall the function [forallb], from the exercise
@@ -270,7 +296,39 @@ Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
     Are there any important properties of the function [forallb] which
     are not captured by your specification? *)
 
-(* FILL IN HERE *)
+Theorem all_forallb_true : forall X (f : X -> bool) (l : list X),
+    all (fun x => f x = true) l <-> forallb f l = true.
+Proof.
+  intros X f l. split.
+  Case "->". intros Hall. induction l as [| h t].
+  SCase "l = []". reflexivity.
+  SCase "l = h::t". inversion Hall. simpl. rewrite H1. simpl. apply IHt. apply H2.
+  Case "<-". intros Hforallbt. induction l as [| h t].
+  SCase "l = []". apply allnil.
+  SCase "l = h::t". inversion Hforallbt. destruct (f h) eqn:Hfh.
+  SSCase "true". rewrite H0. apply allcons. apply Hfh. apply IHt. apply H0.
+  SSCase "false". inversion H0.
+Qed.
+
+Theorem not_all_forallb_false : forall X (f : X -> bool) (l : list X),
+    ~ (all (fun x => f x = true) l) <-> forallb f l = false.
+Proof.
+  intros X f l. split.
+  Case "->". intros Hnotall. induction l as [| h t].
+  SCase "l = []". apply ex_falso_quodlibet. apply Hnotall. apply allnil.
+  SCase "l = h::t". simpl. destruct (f h) eqn:Hfh.
+  SSCase "true".
+  assert (~ all (fun x => f x = true) (h::t) -> ~ all (fun x => f x = true) t) as Hnotall2notall.
+  SSSCase "Proof of assertion". apply contrapositive. apply allcons. apply Hfh.
+  apply Hnotall2notall in Hnotall. apply IHt. apply Hnotall.
+  SSCase "false". reflexivity.
+  Case "<-". intros Hforallbf. induction l as [| h t].
+  SCase "l = []". inversion Hforallbf.
+  SCase "l = h::t". inversion Hforallbf. destruct (f h) eqn:Hfh.
+  SSCase "true". unfold not. intros Hall. inversion Hall. apply IHt. apply H0. apply H3.
+  SSCase "false". unfold not. intros. inversion H. rewrite Hfh in H3. inversion H3.
+Qed.
+  
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced (filter_challenge)  *)
@@ -298,7 +356,41 @@ Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
     for one list to be a merge of two others.  Do this with an
     inductive relation, not a [Fixpoint].)  *)
 
-(* FILL IN HERE *)
+Inductive inorderMerged {X : Type} : list X -> list X -> list X -> Prop :=
+| ioMnil : inorderMerged [] [] []
+| ioMcons1 : forall x l l1 l2, inorderMerged l l1 l2 -> inorderMerged (x::l) (x::l1) l2
+| ioMcons2 : forall x l l1 l2, inorderMerged l l1 l2 -> inorderMerged (x::l) l1 (x::l2)
+.
+
+Theorem filter_spec : forall X (f : X -> bool) l l1 l2,
+    inorderMerged l l1 l2 /\ all (fun x => f x = true) l1 /\ all (fun x => f x = false) l2 ->
+    filter f l = l1.
+Proof.
+  intros X f l.
+  induction l as [| h t].
+  Case "l = []". intros l1 l2 Hspec.
+  inversion Hspec as [HioM [Hall1 Hall2]]. inversion HioM. reflexivity.
+  Case "l = h::t". intros l1 l2 Hspec.
+  inversion Hspec as [HioM [Hall1 Hall2]]. simpl. destruct (f h) eqn:Hfh.
+  SCase "true". inversion HioM.
+  SSCase "ioMcons1". rewrite IHt with l0 l2. reflexivity. split.
+  SSSCase "left". apply H3.
+  SSSCase "right". split.
+  SSSSCase "left". rewrite <- H0 in Hall1. inversion Hall1.
+  SSSSSCase "allcons". apply H7.
+  SSSSCase "right". apply Hall2.
+  SSCase "ioMcons2". rewrite <- H2 in Hall2. inversion Hall2.
+  SSSCase "allcons". rewrite H6 in Hfh. inversion Hfh.
+  SCase "false". inversion HioM.
+  SSCase "ioMcons1". rewrite <- H0 in Hall1. inversion Hall1.
+  SSSCase "allcons". rewrite H6 in Hfh. inversion Hfh.
+  SSCase "ioMcons2". rewrite IHt with l1 l3. reflexivity. split.
+  SSSCase "left". apply H3.
+  SSSCase "right". split.
+  SSSSCase "left". apply Hall1.
+  SSSSCase "right". rewrite <- H2 in Hall2. inversion Hall2.
+  SSSSSCase "allcons". apply H7.
+Qed.
 (** [] *)
 
 (** **** Exercise: 5 stars, advanced, optional (filter_challenge_2)  *)
@@ -307,7 +399,45 @@ Fixpoint forallb {X : Type} (test : X -> bool) (l : list X) : bool :=
     that [test] evaluates to [true] on all their members, [filter test
     l] is the longest.  Express this claim formally and prove it. *)
 
-(* FILL IN HERE *)
+Theorem filter_spec' : forall X (f : X -> bool) (l l0 : list X),
+    subseq (filter f l) l /\ all (fun x => f x = true) (filter f l) /\
+    (subseq l0 l /\ all (fun x => f x = true) l0 ->
+     length l0 <= length (filter f l)).
+Proof.
+  intros X f l.
+  induction l as [| h t].
+  Case "l = []". intros l0. split.
+  SCase "left". apply subnil.
+  SCase "right". split.
+  SSCase "left". apply allnil.
+  SSCase "right". intros Hl0. inversion Hl0 as [Hl0sub Hl0all].
+  destruct l0 as [| h0 t0].
+  SSSCase "l0 = []". apply le_n.
+  SSSCase "l0 = h0::t0". inversion Hl0sub.
+  Case "l = h::t". intros l0. split.
+  SCase "left". simpl. destruct (f h) eqn:Hfh.
+  SSCase "true". apply subele. apply IHt. apply l0.
+  SSCase "false". apply subskip. apply IHt. apply l0.
+  SCase "right". split.
+  SSCase "left". simpl. destruct (f h) eqn:Hfh.
+  SSSCase "true". apply allcons. apply Hfh. apply IHt. apply l0.
+  SSSCase "false". apply IHt. apply l0.
+  SSCase "right". intros Hl0. inversion Hl0 as [Hl0sub Hl0all].
+  destruct l0 as [| h0 t0].
+  SSSCase "l0 = []". apply O_le_n.
+  SSSCase "l0 = h::t". inversion Hl0sub.
+  SSSSCase "subele". rewrite H2 in Hl0all. inversion Hl0all.
+  SSSSSCase "allcons". simpl. rewrite H6. simpl.
+  apply n_le_m__Sn_le_Sm. apply IHt. split.
+  SSSSSSCase "left". apply H0.
+  SSSSSSCase "right". apply H7.
+  SSSSCase "subskip". apply le_trans with (length (filter f t)). apply IHt. split.
+  SSSSSCase "left". apply H1.
+  SSSSSCase "right". apply Hl0all.
+  simpl. destruct (f h) eqn:Hfh.
+  SSSSSCase "true". simpl. apply le_S. apply le_n.
+  SSSSSCase "false". apply le_n.
+Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced (no_repeats)  *)
@@ -326,19 +456,43 @@ Inductive appears_in {X:Type} (a:X) : list X -> Prop :=
 Lemma appears_in_app : forall (X:Type) (xs ys : list X) (x:X), 
      appears_in x (xs ++ ys) -> appears_in x xs \/ appears_in x ys.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros X xs.
+  induction xs as [| hx tx].
+  Case "xs = []". intros ys x Happ. simpl in Happ. right. apply Happ.
+  Case "xs = hx::tx". intros ys x Happ. simpl in Happ.
+  inversion Happ.
+  SCase "ai_here". left. apply ai_here.
+  SCase "ai_later". apply IHtx in H0. inversion H0.
+  SSCase "left". left. apply ai_later. apply H2.
+  SSCase "right". right. apply H2.
+Qed.
+  
 Lemma app_appears_in : forall (X:Type) (xs ys : list X) (x:X), 
      appears_in x xs \/ appears_in x ys -> appears_in x (xs ++ ys).
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros X xs.
+  induction xs as [| hx tx].
+  Case "xs = []". intros ys x Happor.
+  inversion Happor.
+  SCase "left". inversion H.
+  SCase "right". apply H.
+  Case "xs = hx::tx". intros ys x Happor.
+  inversion Happor.
+  SCase "left". inversion H.
+  SSCase "ai_here". apply ai_here.
+  SSCase "ai_later". simpl. apply ai_later. apply IHtx. left. apply H1.
+  SCase "right". simpl. apply ai_later. apply IHtx. right. apply H.
+Qed.
 
 (** Now use [appears_in] to define a proposition [disjoint X l1 l2],
     which should be provable exactly when [l1] and [l2] are
     lists (with elements of type X) that have no elements in common. *)
 
-(* FILL IN HERE *)
+Inductive disjoint {X : Type} : list X -> list X -> Prop :=
+| disnil : disjoint nil nil
+| discons1 : forall x l1 l2, ~ appears_in x l2 -> disjoint l1 l2 -> disjoint (x::l1) l2
+| discons2 : forall x l1 l2, ~ appears_in x l1 -> disjoint l1 l2 -> disjoint l1 (x::l2)
+.
 
 (** Next, use [appears_in] to define an inductive proposition
     [no_repeats X l], which should be provable exactly when [l] is a
@@ -347,12 +501,52 @@ Proof.
     [no_repeats bool []] should be provable, while [no_repeats nat
     [1,2,1]] and [no_repeats bool [true,true]] should not be.  *)
 
-(* FILL IN HERE *)
+Inductive no_repeats {X : Type} : list X -> Prop :=
+| nornil : no_repeats []
+| norcons : forall x l, ~ appears_in x l -> no_repeats (x::l)
+.
 
 (** Finally, state and prove one or more interesting theorems relating
     [disjoint], [no_repeats] and [++] (list append).  *)
 
-(* FILL IN HERE *)
+Lemma not_appears_in_app__not_appears_in : forall X (x : X) (l1 l2 : list X),
+    ~ appears_in x l1 ->
+    ~ appears_in x l2 ->
+    ~ appears_in x (l1 ++ l2).
+Proof.
+  intros X x l1 l2 Hnotapp1 Hnotapp2.
+  generalize dependent l2.
+  induction l1 as [| h1 t1].
+  Case "l1 = []". intros. apply Hnotapp2.
+  Case "l1 = h1::t1". intros. unfold not. intros Happ. inversion Happ.
+  SCase "ai_here". apply Hnotapp1. rewrite H0. apply ai_here.
+  SCase "ai_later". revert H0. apply IHt1.
+  unfold not. intros Happ1. apply Hnotapp1. apply ai_later. apply Happ1.
+  apply Hnotapp2.
+Qed.
+
+Theorem no_repeats_disjoint_app__no_repeats : forall X (l1 l2 : list X),
+    no_repeats l1 ->
+    no_repeats l2 ->
+    disjoint l1 l2 ->
+    no_repeats (l1 ++ l2).
+Proof.
+  intros X l1 l2 Hnor1 Hnor2 Hdis.
+  generalize dependent l2.
+  induction l1 as [| h1 t1].
+  Case "l1 = []". intros. apply Hnor2.
+  Case "l1 = h1::t1". intros. inversion Hnor1.
+  SCase "norcons". simpl. apply norcons.
+  assert (forall (h : X) (t l0 : list X), disjoint (h::t) l0 -> ~ appears_in h l0).
+  SSCase "Proof of assertion". intros h t l0 Hdis0. induction l0.
+  SSSCase "l0 = []". unfold not. intros Happ. inversion Happ.
+  SSSCase "l0 = h0::t0". unfold not. intros Happ. inversion Hdis0.
+  SSSSCase "discons1". apply H4. apply Happ.
+  SSSSCase "discons2". inversion Happ.
+  SSSSSCase "ai_here". apply H5. rewrite H8. apply ai_here.
+  SSSSSCase "ai_later". apply IHl0. apply H6. apply H8.
+  apply H2 in Hdis. apply not_appears_in_app__not_appears_in. apply H0. apply Hdis.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (nostutter)  *)
@@ -368,7 +562,9 @@ Proof.
     does not stutter.) *)
 
 Inductive nostutter:  list nat -> Prop :=
- (* FILL IN HERE *)
+| nostnil : nostutter []
+| nostone : forall x, nostutter [x]
+| nostcons : forall x y l, beq_nat x y = false -> nostutter (y::l) -> nostutter (x::y::l)
 .
 
 (** Make sure each of these tests succeeds, but you are free
@@ -384,32 +580,22 @@ Inductive nostutter:  list nat -> Prop :=
     tactics.  *)
 
 Example test_nostutter_1:      nostutter [3;1;4;1;5;6].
-(* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
+Proof. repeat constructor; apply beq_nat_false; auto. Qed.
+
 
 Example test_nostutter_2:  nostutter [].
-(* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
+Proof. repeat constructor; apply beq_nat_false; auto. Qed.
 
 Example test_nostutter_3:  nostutter [5].
-(* FILL IN HERE *) Admitted.
-(* 
-  Proof. repeat constructor; apply beq_nat_false; auto. Qed.
-*)
+Proof. repeat constructor; apply beq_nat_false; auto. Qed.
 
 Example test_nostutter_4:      not (nostutter [3;1;1;4]).
-(* FILL IN HERE *) Admitted.
-(* 
-  Proof. intro.
+Proof. intro.
   repeat match goal with 
     h: nostutter _ |- _ => inversion h; clear h; subst 
   end.
-  contradiction H1; auto. Qed.
-*)
+  inversion H1.
+Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced (pigeonhole principle)  *)
@@ -425,20 +611,32 @@ Example test_nostutter_4:      not (nostutter [3;1;1;4]).
 Lemma app_length : forall (X:Type) (l1 l2 : list X),
   length (l1 ++ l2) = length l1 + length l2. 
 Proof. 
-  (* FILL IN HERE *) Admitted.
+  intros X l1. induction l1 as [| h1 t1].
+  Case "l1 = []". intros l2. reflexivity.
+  Case "l1 = h1::t1". intros l2. simpl. rewrite IHt1. reflexivity.
+Qed.
 
 Lemma appears_in_app_split : forall (X:Type) (x:X) (l:list X),
   appears_in x l -> 
   exists l1, exists l2, l = l1 ++ (x::l2).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x l Happ.
+  induction l as [| h t].
+  Case "l = []". inversion Happ.
+  Case "l = h::t". inversion Happ.
+  SCase "ai_here". exists []. exists t. reflexivity.
+  SCase "ai_later". apply IHt in H0. inversion H0 as [l1 H2].
+  inversion H2 as [l2 H3].
+  exists (h::l1). exists l2. rewrite H3. reflexivity.
+Qed.
 
 (** Now define a predicate [repeats] (analogous to [no_repeats] in the
    exercise above), such that [repeats X l] asserts that [l] contains
    at least one repeated element (of type [X]).  *)
 
 Inductive repeats {X:Type} : list X -> Prop :=
-  (* FILL IN HERE *)
+| repcons1 : forall x l, appears_in x l -> repeats (x::l)
+| repcons2 : forall x l, repeats l -> repeats (x::l)
 .
 
 (** Now here's a way to formalize the pigeonhole principle. List [l2]
@@ -459,10 +657,43 @@ Theorem pigeonhole_principle: forall (X:Type) (l1  l2:list X),
    repeats l1.  
 Proof.
    intros X l1. induction l1 as [|x l1'].
-  (* FILL IN HERE *) Admitted.
+   Case "l1 = []". intros l2 Hexcluded_middle HappTrans HLt.
+   inversion HLt.
+   Case "l1 = x::l1'". intros l2 Hexcluded_middle Happtrans HLt.
+   assert (appears_in x l1' \/ ~ appears_in x l1') as Happl1'.
+   SCase "Proof of assertion". apply Hexcluded_middle.
+   inversion Happl1'.
+   SCase "True". apply repcons1. apply H.
+   SCase "False". apply repcons2.
+   assert (appears_in x (x::l1')) as Happx.
+   SSCase "Proof of assertion". apply ai_here.
+   apply Happtrans in Happx. apply appears_in_app_split in Happx.
+   inversion Happx as [l21 Happx0]. inversion Happx0 as [l22 Happx1].
+   apply IHl1' with (l21 ++ l22).
+   apply Hexcluded_middle.
+   intros.
+   assert ( x = x0 \/ ~ x = x0).
+   SSCase "Proof of assertion". apply Hexcluded_middle.
+   inversion H1.
+   SSCase "=". rewrite H2 in H. apply ex_falso_quodlibet. apply H. apply H0.
+   SSCase "<>". apply ai_later with (b:=x) in H0. apply Happtrans in H0.
+   rewrite Happx1 in H0. apply appears_in_app in H0. apply app_appears_in.
+   inversion H0.
+   SSSCase "left". left. apply H3.
+   SSSCase "right". inversion H3.
+   SSSSCase "ai_here". apply ex_falso_quodlibet. apply H2. rewrite H5. reflexivity.
+   SSSSCase "ai_later". right. apply H5.
+   rewrite Happx1 in HLt. rewrite -> app_length in HLt. rewrite -> app_length.
+   simpl in HLt. rewrite plus_comm in HLt. simpl in HLt. rewrite plus_comm.
+   apply Sn_le_Sm__n_le_m. apply HLt.
+Qed.
 (** [] *)
 
-(* FILL IN HERE *)
-
+Theorem pigeonhole_principle': forall (X:Type) (l1  l2:list X), 
+   (forall x, appears_in x l1 -> appears_in x l2) -> 
+   length l2 < length l1 -> 
+   repeats l1.  
+Proof.
+Abort.
 
 (** $Date: 2014-12-31 16:01:37 -0500 (Wed, 31 Dec 2014) $ *)
