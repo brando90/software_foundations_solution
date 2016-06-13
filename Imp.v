@@ -2287,6 +2287,8 @@ Inductive ceval : com -> state -> state -> Prop :=
       WHILE b DO c END / st0 || st0
 where "c1 '/' st '||' st'" := (ceval c1 st st')
 .
+
+End ForLoopCom.
 (** [] *)
 
 
