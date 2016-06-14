@@ -219,20 +219,39 @@ These decorations were constructed as follows:
 (** Fill in valid decorations for the following program:
    {{ True }}
   IFB X <= Y THEN
-      {{                         }} ->>
-      {{                         }}
+      {{ True /\ X <= Y }} ->>
+      {{ Y = X + Z [ Z |-> Y - X ] }}
     Z ::= Y - X
-      {{                         }}
+      {{ Y = X + Z }}
   ELSE
-      {{                         }} ->>
-      {{                         }}
+      {{ True /\ ~ X <= Y }} ->>
+      {{ Y = X + Z [ Y |-> X + Z ] }}
     Y ::= X + Z
-      {{                         }}
+      {{ Y = X + Z }}
   FI
     {{ Y = X + Z }}
-*)
+ *)
 
-
+Theorem if_minus_plus_reloaded_is_correct :
+    {{ fun st => True }}
+    IFB (BLe (AId X) (AId Y)) THEN
+      Z ::= AMinus (AId Y) (AId X)
+    ELSE
+      Y ::= APlus (AId X) (AId Z)
+    FI
+    {{ fun st => st Y = st X + st Z }}.
+Proof.
+  apply hoare_if.
+  eapply hoare_consequence_pre.
+  apply hoare_asgn.
+  unfold assn_sub, assert_implies, update, bassn; simpl.
+  intros st [_ H]. remember (st X) as x. remember (st Y) as y.
+  apply ble_nat_true in H. omega.
+  eapply hoare_consequence_pre.
+  apply hoare_asgn.
+  unfold assn_sub, assert_implies, update, bassn; simpl.
+  intros st [_ H]. reflexivity.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -514,15 +533,54 @@ Proof.
     it hits [0], incrementing [Y] at each step. Here is a program that
     implements this idea:
       {{ X = m }}
+      {{ Y + X = m [ Y |-> 0 ] }}
     Y ::= 0;;
+      {{ Y + X = m }}
     WHILE X <> 0 DO
+      {{ Y + X = m /\ X <> 0 }} ->>
+      {{ Y + X = m [ Y |-> Y + 1 ][ X |-> X - 1 ] }}
       X ::= X - 1;;
+      {{ Y + X = m [ Y |-> Y + 1 ]}}
       Y ::= Y + 1
+      {{ Y + X = m }}
     END
+      {{ Y + X = m /\ X = 0 }} ->>
       {{ Y = m }}
     Write an informal decorated program showing that this is correct. *)
 
-(* FILL IN HERE *)
+Theorem slow_assignment_is_correct : forall m,
+    {{ fun st => st X = m }}
+    Y ::= ANum 0;;
+    WHILE (BNot (BEq (AId X) (ANum 0))) DO
+      X ::= AMinus (AId X) (ANum 1);;
+      Y ::= APlus (AId Y) (ANum 1)
+    END
+    {{ fun st => st Y = m }}.
+Proof.
+  intros m.
+  apply hoare_consequence_post with
+  (fun st => st Y + st X = m /\ ~ bassn (BNot (BEq (AId X) (ANum 0))) st).
+  eapply hoare_consequence_pre.
+  eapply hoare_seq.
+  Case "Loop Body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq. apply hoare_asgn. apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond]. rewrite <- HI.
+  apply negb_true_iff in Hcond. apply beq_nat_false in Hcond.
+  omega.
+  Case "Loop predconditions".
+  apply hoare_asgn.
+  unfold assn_sub, update; simpl.
+  intros st Hx. apply Hx.
+  Case "Loop terminates".
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond].
+  destruct (st X).
+  SCase "st X = 0". omega.
+  SCase "st X = S n". apply ex_falso_quodlibet. apply Hcond. reflexivity.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -532,17 +590,51 @@ Proof.
 (** **** Exercise: 3 stars, optional (add_slowly_decoration)  *)
 (** The following program adds the variable X into the variable Z
     by repeatedly decrementing X and incrementing Z.
+     {{ X = n /\ Z = m}}
+     {{ X + Z = n + m }}
   WHILE X <> 0 DO
+     {{ X + Z = n + m /\ X <> 0 }} ->>
+     {{ X + Z = n + m [ X |-> X - 1 ][ Z |-> Z + 1] }}
      Z ::= Z + 1;;
+     {{ X + Z = n + m [ X |-> X - 1 ] }}
      X ::= X - 1
+     {{ X + Z = n + m }}
   END
+     {{ X + Z = n + m /\ X = 0 }}
+     {{ Z = n + m }}
 
     Following the pattern of the [subtract_slowly] example above, pick
     a precondition and postcondition that give an appropriate
     specification of [add_slowly]; then (informally) decorate the
     program accordingly. *)
 
-(* FILL IN HERE *)
+Theorem add_slowly_is_correct : forall n m,
+        {{ fun st => st X = n /\ st Z = m }}
+      WHILE (BNot (BEq (AId X) (ANum 0))) DO
+        Z ::= APlus (AId Z) (ANum 1);;
+        X ::= AMinus (AId X) (ANum 1)
+      END
+        {{ fun st => st Z = n + m }}.
+Proof.
+  intros n m.
+  apply hoare_consequence_post with
+  (fun st => st X + st Z = n + m /\ ~ bassn (BNot (BEq (AId X) (ANum 0))) st).
+  eapply hoare_consequence_pre.
+  Case "Loop body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq. apply hoare_asgn. apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond].
+  apply negb_true_iff in Hcond. apply beq_nat_false in Hcond. omega.
+  intros st [Hx Hz]. omega.
+  Case "Loop terminates".
+  unfold bassn; simpl.
+  intros st [HI Hcond].
+  destruct (st X); try omega.
+  SCase "st X = S n". simpl in Hcond.
+  apply ex_falso_quodlibet. apply Hcond; reflexivity.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -621,7 +713,26 @@ Theorem parity_correct : forall m,
   END
     {{ fun st => st X = parity m }}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros m.
+  apply hoare_consequence_post with
+  (fun st => parity (st X) = parity m /\ ~ bassn (BLe (ANum 2) (AId X)) st).
+  eapply hoare_consequence_pre.
+  Case "Loop body".
+  apply hoare_while.
+  eapply hoare_consequence_pre. apply hoare_asgn.
+  unfold assn_sub, update, bassn.
+  intros st [HI Hcond].
+  apply ble_nat_true in Hcond. simpl in Hcond. apply parity_ge_2 in Hcond.
+  simpl. rewrite <- HI. apply Hcond.
+  intros st Hx. rewrite Hx. reflexivity.
+  Case "Loop terminates".
+  unfold bassn.
+  intros st [HI Hcond].
+  destruct (ble_nat 2 (st X)) eqn:Hble.
+  SCase "true". apply ex_falso_quodlibet. apply Hcond. apply Hble.
+  SCase "false". rewrite <- HI. symmetry. apply parity_lt_2.
+  apply ble_nat_false. apply Hble.
+Qed.
 (** [] *)
 
 (* ####################################################### *)
@@ -777,21 +888,57 @@ Proof.
 
     Fill in the blanks in following decorated program:
     {{ X = m }} ->>
-    {{                                      }}
+    {{ X! * Y = m! [ Y |-> 1 ] }}
   Y ::= 1;;
-    {{                                      }}
+    {{ X! * Y = m! }}
   WHILE X <> 0
-  DO   {{                                      }} ->>
-       {{                                      }}
+  DO   {{ X! * Y = m! /\ X <> 0 }} ->>
+       {{ X! * Y = m! [ X |-> X - 1 ][ Y |-> Y * X ] }}
      Y ::= Y * X;;
-       {{                                      }}
+       {{ X! * Y = m! [ X |-> X - 1 ] }}
      X ::= X - 1
-       {{                                      }}
+       {{ X! * Y = m! }}
   END
-    {{                                      }} ->>
+    {{ X! * Y = m! /\ X = 0 }} ->>
     {{ Y = m! }}
 *)
 
+Theorem factorial_is_correct : forall m,
+        {{ fun st => st X = m }}
+      Y ::= ANum 1;;
+      WHILE (BNot (BEq (AId X) (ANum 0))) DO
+        Y ::= AMult (AId Y) (AId X);;
+        X ::= AMinus (AId X) (ANum 1)
+      END
+        {{ fun st => st Y = fact m }}.
+Proof.
+  intros m.
+  apply hoare_consequence_post with
+  (fun st => fact (st X) * (st Y) = fact m
+             /\ ~ bassn (BNot (BEq (AId X) (ANum 0))) st).
+  eapply hoare_consequence_pre.
+  eapply hoare_seq.
+  Case "Loop body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq; apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond].
+  destruct (st X).
+  SCase "st X = 0". inversion Hcond.
+  SCase "st X = S n". simpl. rewrite <- minus_n_O. rewrite <- HI. simpl.
+  rewrite mult_assoc. rewrite mult_comm. rewrite mult_assoc. reflexivity.
+  Case "Loop predicates".
+  apply hoare_asgn.
+  unfold assn_sub, update; simpl.
+  intros st Hx. rewrite Hx. omega.
+  Case "Loop terminates".
+  unfold bassn; simpl.
+  intros st [HI Hcond]. rewrite <- HI.
+  destruct (st X).
+  SCase "st X = 0". simpl. omega.
+  SCase "st X = S n". apply ex_falso_quodlibet. apply Hcond. reflexivity.
+Qed.
 
 (** [] *)
 
@@ -812,28 +959,97 @@ Proof.
   plus, as usual, standard high-school algebra.
 
   {{ True }} ->>
-  {{                    }}
+  {{ Z + min X Y = min a b [ Z |-> 0 ][ Y |-> b ][ X |-> a ] }}
   X ::= a;;
-  {{                       }}
+  {{ Z + min X Y = min a b [ Z |-> 0 ][ Y |-> b ] }}
   Y ::= b;;
-  {{                       }}
+  {{ Z + min X Y = min a b [ Z |-> 0 ] }}
   Z ::= 0;;
-  {{                       }}
+  {{ Z + min X Y = min a b }}
   WHILE (X <> 0 /\ Y <> 0) DO
-  {{                                     }} ->>
-  {{                                }}
+  {{ Z + min X Y = min a b /\ X <> 0 /\ Y <> 0 }} ->>
+  {{ Z + min X Y = min a b [ Z |-> Z + 1 ][ Y |-> Y - 1 ][ X |-> X - 1 ] }}
   X := X - 1;;
-  {{                            }}
+  {{ Z + min X Y = min a b [ Z |-> Z + 1 ][ Y |-> Y - 1 ] }}
   Y := Y - 1;;
-  {{                        }}
+  {{ Z + min X Y = min a b [ Z |-> Z + 1 ] }}
   Z := Z + 1
-  {{                       }}
+  {{ Z + min X Y = min a b }}
   END
-  {{                            }} ->>
+  {{ Z + min X Y = min a b /\ (X = 0 \/ Y = 0) }} ->>
   {{ Z = min a b }}
 *)
 
+Lemma min_lemma1 : forall x y,
+    (x = 0 \/ y = 0) -> min x y = 0.
+Proof.
+  intros x y H.
+  inversion H.
+  Case "left". rewrite H0. reflexivity.
+  Case "right". rewrite H0. apply min_r. apply le_O_n.
+Qed.
 
+Lemma min_lemma2 : forall x y,
+    min (x - 1) (y - 1) = (min x y) - 1.
+Proof.
+  intros x y.
+  destruct (ble_nat x y) eqn:Hble.
+  Case "true". repeat rewrite min_l. reflexivity.
+  apply ble_nat_true. apply Hble.
+  apply minus_le_compat_r. apply ble_nat_true. apply Hble.
+  Case "false". repeat rewrite min_r. reflexivity.
+  apply ble_nat_false in Hble. omega.
+  apply minus_le_compat_r. apply ble_nat_false in Hble. omega.
+Qed.
+
+Theorem min_is_correct : forall a b,
+        {{ fun st => True }}
+      X ::= ANum a;;
+      Y ::= ANum b;;
+      Z ::= ANum 0;;
+      WHILE (BAnd (BNot (BEq (AId X) (ANum 0))) (BNot (BEq (AId Y) (ANum 0)))) DO
+        X ::= AMinus (AId X) (ANum 1);;
+        Y ::= AMinus (AId Y) (ANum 1);;
+        Z ::= APlus (AId Z) (ANum 1)
+      END
+      {{ fun st => st Z = min a b }}.
+Proof.
+  intros a b.
+  apply hoare_consequence_post with
+  (fun st => st Z + min (st X) (st Y) = min a b
+             /\ ~ bassn (BAnd
+                           (BNot (BEq (AId X) (ANum 0)))
+                           (BNot (BEq (AId Y) (ANum 0)))) st).
+  eapply hoare_consequence_pre.
+  eapply hoare_seq.
+  eapply hoare_seq.
+  eapply hoare_seq.
+  Case "Loop body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq; try apply hoare_asgn.
+  eapply hoare_seq; apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond]. apply andb_true in Hcond as [Hcond1 Hcond2].
+  destruct (st X) as [| x0]; destruct (st Y) as [| y0];
+    try inversion Hcond1; try inversion Hcond2.
+  SCase "st X = S x0". SSCase "st Y = S y0".
+  rewrite min_lemma2.
+  rewrite <- HI. rewrite <- plus_assoc. rewrite <- le_plus_minus with (n:=1).
+  reflexivity.
+  simpl. apply le_n_S. apply le_O_n.
+  Case "Loop predicates".
+  apply hoare_asgn. apply hoare_asgn. apply hoare_asgn.
+  unfold assn_sub, update; simpl.
+  intros st. reflexivity.
+  Case "Loop terminates".
+  unfold bassn; simpl.
+  intros st [HI Hcond].
+  apply not_true_is_false in Hcond. apply andb_false_iff in Hcond.
+  rewrite <- HI. rewrite min_lemma1. omega.
+  inversion Hcond as [ Hcond0 | Hcond0];
+    apply negb_false_iff in Hcond0; apply beq_nat_true in Hcond0; omega.
+Qed.
 (** [] *)
 
 
@@ -855,35 +1071,87 @@ Proof.
     following decorated program.
 
     {{ True }} ->>
-    {{                                        }}
+    {{ Z = X + Y + c [ Z |-> c ][ Y |-> 0 ][ X |-> 0 ] }}
   X ::= 0;;
-    {{                                        }}
+    {{ Z = X + Y + c [ Z |-> c ][ Y |-> 0 ] }}
   Y ::= 0;;
-    {{                                        }}
+    {{ Z = X + Y + c [ Z |-> c ] }}
   Z ::= c;;
-    {{                                        }}
+    {{ Z = X + Y + c }}
   WHILE X <> a DO
-      {{                                        }} ->>
-      {{                                        }}
+      {{ Z = X + Y + c /\ X <> a }} ->>
+      {{ Z = X + Y + c [ Z |-> Z + 1 ][ X |-> X + 1 ] }}
     X ::= X + 1;;
-      {{                                        }}
+      {{ Z = X + Y + c [ Z |-> Z + 1 ] }}
     Z ::= Z + 1
-      {{                                        }}
+      {{ Z = X + Y + c }}
   END;;
-    {{                                        }} ->>
-    {{                                        }}
+    {{ Z = X + Y + c /\ X = a }} ->>
+    {{ Z = a + Y + c }}
   WHILE Y <> b DO
-      {{                                        }} ->>
-      {{                                        }}
+      {{ Z = a + Y + c /\ Y <> b }} ->>
+      {{ Z = a + Y + c [ Z |-> Z + 1 ][ Y |-> Y + 1 ] }}
     Y ::= Y + 1;;
-      {{                                        }}
+      {{ Z = a + Y + c [ Z |-> Z + 1 ] }}
     Z ::= Z + 1
-      {{                                        }}
+      {{ Z = a + Y + c }}
   END
-    {{                                        }} ->>
+    {{ Z = a + Y + c /\ Y = b }} ->>
     {{ Z = a + b + c }}
 *)
 
+Theorem two_loop_is_correct : forall a b c,
+      {{ fun st => True }}
+    X ::= ANum 0;;
+    Y ::= ANum 0;;
+    Z ::= ANum c;;
+    WHILE (BNot (BEq (AId X) (ANum a))) DO
+      X ::= APlus (AId X) (ANum 1);;
+      Z ::= APlus (AId Z) (ANum 1)
+    END;;
+    WHILE (BNot (BEq (AId Y) (ANum b))) DO
+      Y ::= APlus (AId Y) (ANum 1);;
+      Z ::= APlus (AId Z) (ANum 1)
+    END
+      {{ fun st => st Z = a + b + c }}.
+Proof.
+  intros a b c.
+  apply hoare_consequence_post with
+  (fun st => st Z = a + st Y + c /\ ~ bassn (BNot (BEq (AId Y) (ANum b))) st).
+  eapply hoare_consequence_pre.
+  eapply hoare_seq; try apply hoare_asgn.
+  eapply hoare_seq; try apply hoare_asgn.
+  eapply hoare_seq; try apply hoare_asgn.
+  eapply hoare_seq.
+  Case "Loop2 body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq; apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond]. omega.
+  apply hoare_consequence_post with
+  (fun st => st Z = st X + st Y + c /\ ~ bassn (BNot (BEq (AId X) (ANum a))) st).
+  Case "Loop1 body".
+  apply hoare_while.
+  eapply hoare_consequence_pre.
+  eapply hoare_seq; apply hoare_asgn.
+  unfold assn_sub, update, bassn; simpl.
+  intros st [HI Hcond]. omega.
+  Case "Loop2 terminates".
+  unfold bassn; simpl.
+  intros st [HI Hcond]. apply not_true_is_false in Hcond.
+  apply negb_false_iff in Hcond. apply beq_nat_true in Hcond.
+  rewrite HI. rewrite Hcond. reflexivity.
+  Case "Loop predicates".
+  unfold assn_sub, update; simpl.
+  intros st _. reflexivity.
+  Case "Loop1 terminates".
+  unfold bassn; simpl.
+  intros st [HI Hcond]. apply not_true_is_false in Hcond.
+  apply negb_false_iff in Hcond. apply beq_nat_true in Hcond.
+  rewrite HI. rewrite Hcond. reflexivity.
+Qed.  
+  
 (** [] *)
 
 (* ####################################################### *)
@@ -903,7 +1171,31 @@ Proof.
   END
     Write a decorated program for this. *)
 
-(* FILL IN HERE *)
+(**
+    {{ True }} ->>
+    {{ Y = 2^X + Z - 1 [ Z |-> 1 ][ Y |-> 1 ][ X |-> 0 ] }}
+  X ::= 0;;
+    {{ Y = 2^X + Z - 1 [ Z |-> 1 ][ Y |-> 1 ] }}
+  Y ::= 1;;
+    {{ Y = 2^X + Z - 1 [ Z |-> 1 ] }}
+  Z ::= 1;;
+    {{ Y = 2^X + Z - 1 }}
+  WHILE X <> m DO
+    {{ Y = 2^X + Z - 1 /\ X <> m }} ->>
+    {{ Y = 2^X + Z - 1 [ X |-> X + 1 ][ Y |-> Y + Z ][ Z |-> 2*Z ] }}
+    Z ::= 2 * Z;;
+    {{ Y = 2^X + Z - 1 [ X |-> X + 1 ][ Y |-> Y + Z ] }}
+    Y ::= Y + Z;;
+    {{ Y = 2^X + Z - 1 [ X |-> X + 1 ] }}
+    X ::= X + 1
+    {{ Y = 2^X + Z - 1 }}
+  END
+    {{ Y = 2^X + Z - 1 /\ Z = 2^X /\ X = m }} ->>
+    {{ Y = 2^(m+1) - 1 }}
+
+ *)
+
+(* To prove this in coq, we need function pow. *)
 
 (* ####################################################### *)
 (** * Weakest Preconditions (Advanced) *)
@@ -964,7 +1256,20 @@ Definition is_wp P c Q :=
      WHILE True DO X ::= 0 END
      {{ X = 0 }}
 *)
-(* FILL IN HERE *)
+(*
+  1) {{ X = 5 }}
+  2) {{ X = 5 [ X |-> Y + Z ] }}
+     or
+     {{ Y + Z = 5}}
+  3) {{ X = Y [ X |-> Y ] }}
+     or
+     {{ Y = Y }}
+  4) {{ (X = 0 /\ Y = 5) [ Y |-> Z + 1 ] \/ (X <> 0 /\ Y = 5) [ Y |-> W + 2] }}
+     or
+     {{ (X = 5 /\ Z = 4) \/ (X <> 0 /\ W = 3) }}
+  5) {{ False }}
+  6) {{ True }}
+*)
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced, optional (is_wp_formal)  *)
@@ -976,7 +1281,17 @@ Theorem is_wp_example :
   is_wp (fun st => st Y <= 4)
     (X ::= APlus (AId Y) (ANum 1)) (fun st => st X <= 5).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  split.
+  Case "is precondition". eapply hoare_consequence_pre. apply hoare_asgn.
+  unfold assn_sub, update; simpl.
+  intros st Hy. omega.
+  Case "is weakest".
+  unfold hoare_triple.
+  intros P HPpre st HP.
+  apply HPpre with (st':=update st X (aeval st (APlus (AId Y) (ANum 1)))) in HP.
+  unfold update in HP. simpl in HP. omega.
+  apply E_Ass. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, advanced (hoare_asgn_weakest)  *)
@@ -986,7 +1301,15 @@ Proof.
 Theorem hoare_asgn_weakest : forall Q X a,
   is_wp (Q [X |-> a]) (X ::= a) Q.
 Proof.
-(* FILL IN HERE *) Admitted.
+  split.
+  Case "is_precondition". apply hoare_asgn.
+  Case "is weakest".
+  unfold hoare_triple.
+  intros P HPpre st HP.
+  apply HPpre with (st':=update st X (aeval st a)) in HP.
+  unfold update in HP. apply HP.
+  apply E_Ass. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, advanced, optional (hoare_havoc_weakest)  *)
@@ -999,7 +1322,12 @@ Lemma hoare_havoc_weakest : forall (P Q : Assertion) (X : id),
   {{ P }} HAVOC X {{ Q }} ->
   P ->> havoc_pre X Q.
 Proof.
-(* FILL IN HERE *) Admitted.
+  unfold hoare_triple.
+  intros P Q X HH st HP n.
+  apply HH with (st':=update st X n) in HP. apply HP.
+  apply E_Havoc.
+Qed.
+
 End Himp2.
 (** [] *)
 
@@ -1380,12 +1708,27 @@ Proof. intros m p. verify. (* this grinds for a bit! *) Qed.
     Write a _formal_ version of this decorated program and prove it
     correct. *)
 
-Example slow_assignment_dec (m:nat) : dcom :=
-(* FILL IN HERE *) admit.
-
+Example slow_assignment_dec (m:nat) : dcom := (
+    {{ fun st => st X = m }} ->>
+    {{ fun st => st X + 0 = m }}
+  Y ::= (ANum 0)
+    {{ fun st => st X + st Y = m }};;
+  WHILE (BNot (BEq (AId X) (ANum 0))) DO
+    {{ fun st => st X + st Y = m /\ st X <> 0 }} ->>
+    {{ fun st => st X - 1 + st Y + 1 = m}}
+  Y ::= APlus (AId Y) (ANum 1)
+    {{ fun st => st X - 1 + st Y = m }};;
+  X ::= AMinus (AId X) (ANum 1)
+    {{ fun st => st X + st Y = m }}
+  END
+    {{ fun st => st X + st Y = m /\ st X = 0 }} ->>
+    {{ fun st => st Y = m }}
+) % dcom.
+  
+  
 Theorem slow_assignment_dec_correct : forall m,
   dec_correct (slow_assignment_dec m).
-Proof. (* FILL IN HERE *) Admitted.
+Proof. intros m. verify. Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced (factorial_dec)   *)
@@ -1401,7 +1744,32 @@ Fixpoint real_fact (n:nat) : nat :=
     program [factorial_dec] that implements the factorial function and 
     prove it correct as [factorial_dec_correct]. *)
 
-(* FILL IN HERE *)
+Example factorial_dec_correct (m:nat) : dcom := (
+  {{ fun st => st X = m }} ->>
+  {{ fun st => real_fact (st X) * 1 = real_fact m }}
+  Y ::= (ANum 1)
+  {{ fun st => st Y * real_fact (st X) = real_fact m }};;
+  WHILE (BNot (BEq (AId X) (ANum 0))) DO
+  {{ fun st => st Y * real_fact (st X) = real_fact m /\ st X <> 0 }} ->>
+  {{ fun st => st Y * st X * real_fact (st X - 1) = real_fact m }}
+  Y ::= AMult (AId Y) (AId X)
+  {{ fun st => st Y * real_fact (st X - 1) = real_fact m }};;
+  X ::= AMinus (AId X) (ANum 1)
+  {{ fun st => st Y * real_fact (st X) = real_fact m }}
+  END
+  {{ fun st => st Y * real_fact (st X) = real_fact m /\ st X = 0 }} ->>
+  {{ fun st => st Y = real_fact m }} ) % dcom.
+
+Theorem facctorial_dec_correct : forall m,
+  dec_correct (factorial_dec_correct m).
+Proof.
+  intros m. verify.
+  destruct (st X); try (exfalso; apply H0; reflexivity).
+  simpl. rewrite <- minus_n_O. rewrite <- H. rewrite <- mult_assoc.
+  replace (S n * real_fact (n)) with (real_fact (S n)). reflexivity.
+  simpl. omega.
+  rewrite <- H. simpl. omega.
+Qed.
 (** [] *)
 
 
