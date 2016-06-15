@@ -387,7 +387,28 @@ where "'[' x ':=' s ']' t" := (subst x s t).
 Inductive substi (s:tm) (x:id) : tm -> tm -> Prop := 
   | s_var1 : 
       substi s x (tvar x) s
-  (* FILL IN HERE *)
+  | s_var2 : forall y,
+      x <> y ->
+      substi s x (tvar y) (tvar y)
+  | s_abs1 : forall T t,
+      substi s x (tabs x T t) (tabs x T t)
+  | s_abs2 : forall T t t' y,
+      x <> y ->
+      substi s x t t' ->
+      substi s x (tabs y T t) (tabs y T t')
+  | s_app : forall t1 t1' t2 t2',
+      substi s x t1 t1' ->
+      substi s x t2 t2' ->
+      substi s x (tapp t1 t2) (tapp t1' t2')
+  | s_true :
+      substi s x ttrue ttrue
+  | s_false :
+      substi s x tfalse tfalse
+  | s_if : forall t1 t1' t2 t2' t3 t3',
+      substi s x t1 t1' ->
+      substi s x t2 t2' ->
+      substi s x t3 t3' ->
+      substi s x (tif t1 t2 t3) (tif t1' t2' t3')
 .
 
 Hint Constructors substi.
@@ -395,7 +416,16 @@ Hint Constructors substi.
 Theorem substi_correct : forall s x t t',
   [x:=s]t = t' <-> substi s x t t'.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros s x t t'.
+  split; intros; generalize dependent t';
+    t_cases (induction t) SCase; intros; inversion H; subst; simpl;
+      try destruct (eq_id_dec x i); subst; auto;
+        try rewrite eq_id; try (exfalso; eauto; reflexivity);
+          eauto.
+  SCase "tapp". erewrite IHt1; try erewrite IHt2; eauto.
+  SCase "tabs". erewrite IHt; eauto.
+  SCase "tif". erewrite IHt1; try erewrite IHt2; try erewrite IHt3; eauto.
+Qed.
 (** [] *)
 
 (* ################################### *)
@@ -579,12 +609,18 @@ Proof. normalize.  Qed.
 (** Try to do this one both with and without [normalize]. *)
 
 Lemma step_example5 :
-       (tapp (tapp idBBBB idBB) idB)
-  ==>* idB.
+  tapp (tapp idBBBB idBB) idB ==>* idB.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  eapply multi_step. eauto. simpl.
+  eapply multi_step. eauto. simpl.
+  apply multi_refl.
+Qed.
 
-(* FILL IN HERE *)
+Lemma step_example5' :
+  tapp (tapp idBBBB idBB) idB ==>* idB.
+Proof.
+  normalize.
+Qed.
 (** [] *)
 
 (* ###################################################################### *)
@@ -749,7 +785,11 @@ Example typing_example_2_full :
           (tapp (tvar y) (tapp (tvar y) (tvar x))))) \in
     (TArrow TBool (TArrow (TArrow TBool TBool) TBool)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  apply T_Abs. apply T_Abs.
+  apply T_App with (TBool). apply T_Var. apply extend_eq.
+  apply T_App with (TBool). apply T_Var. apply extend_eq.
+  apply T_Var. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars (typing_example_3)  *)
@@ -769,7 +809,15 @@ Example typing_example_3 :
                (tapp (tvar y) (tapp (tvar x) (tvar z)))))) \in
       T.
 Proof with auto.
-  (* FILL IN HERE *) Admitted.
+  exists (TArrow (TArrow TBool TBool)
+                 (TArrow (TArrow TBool TBool)
+                         (TArrow TBool
+                                 TBool))).
+  apply T_Abs. apply T_Abs. apply T_Abs.
+  eapply T_App. apply T_Var. reflexivity.
+  eapply T_App. apply T_Var. reflexivity.
+  apply T_Var. reflexivity.
+Qed.
 (** [] *)
 
 (** We can also show that terms are _not_ typable.  For example, let's
@@ -811,7 +859,18 @@ Example typing_nonexample_3 :
              (tapp (tvar x) (tvar x))) \in
           T).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros Hc. inversion Hc.
+  inversion H. subst. clear H.
+  inversion H0. subst. clear H0.
+  inversion H5. subst. clear H5.
+  inversion H4. subst. clear H4.
+  inversion H2. subst. clear H2.
+  inversion H1. subst. clear H1.
+  inversion H3.
+  induction (T11); inversion H0.
+  apply IHT11_1. rewrite <- H2. rewrite <- H1. reflexivity.
+  rewrite <- H2. apply H1.
+Qed.
 (** [] *)
 
 
