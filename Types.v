@@ -67,6 +67,7 @@ Hint Constructors bvalue nvalue.
 Hint Unfold value.  
 Hint Unfold extend.
 
+
 (* ###################################################################### *)
 (** ** Operational Semantics *)
 
@@ -185,7 +186,9 @@ Hint Unfold stuck.
 Example some_term_is_stuck :
   exists t, stuck t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  eexists (tsucc ttrue). unfold stuck. unfold normal_form. unfold not.
+  split; intros; try solve by inversion 3.
+Qed.
 (** [] *)
 
 (** However, although values and normal forms are not the same in this
@@ -205,7 +208,24 @@ Proof.
 Lemma value_is_nf : forall t,
   value t -> step_normal_form t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros t Hv. unfold normal_form, not.
+  inversion Hv.
+  Case "bvalue". inversion H; intros; try solve by inversion 2.
+  Case "nvalue". induction H; intros; try solve by inversion 2.
+  apply IHnvalue. auto.
+  inversion H0. inversion H1. eauto.
+Qed.
+
+Lemma value_is_nf' : forall t,
+  value t -> step_normal_form t.
+Proof.
+  intros t Hv. unfold normal_form, not.
+  induction t; intros; try solve by inversion 2.
+  inversion Hv; try solve by inversion.
+  apply IHt; inversion H; inversion H0; try inversion H1; eauto.
+Qed.
+
+Hint Resolve value_is_nf.
 (** [] *)
 
 
@@ -213,10 +233,28 @@ Proof.
 (** Using [value_is_nf], we can show that the [step] relation is
     also deterministic... *)
 
+Ltac find_eqn :=
+  match goal with
+    H1: forall x, ?P x -> ?L = ?R, H2: ?P ?X |- _ => 
+         rewrite (H1 X H2) in * 
+  end.
+
 Theorem step_deterministic:
   deterministic step.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros x y1 y2 Hy1 Hy2.
+  generalize dependent y2.
+  step_cases (induction Hy1) Case; intros; inversion Hy2;
+    subst; try solve by inversion; auto; repeat find_eqn...
+  Case "ST_PredSucc".
+  inversion H1. exfalso. eapply or_intror in H. apply value_is_nf in H. eauto.
+  Case "ST_Pred".
+  inversion Hy1. exfalso. eapply or_intror in H0. apply value_is_nf in H0. eauto.
+  Case "ST_IszeroSucc".
+  inversion H1. exfalso. eapply or_intror in H. apply value_is_nf in H. eauto.
+  Case "ST_Iszero".
+  inversion Hy1. exfalso. eapply or_intror in H0. apply value_is_nf in H0. eauto.
+Qed.
 (** [] *)
 
 
@@ -310,12 +348,12 @@ Hint Constructors has_type.
 
 Example has_type_1 : 
   |- tif tfalse tzero (tsucc tzero) \in TNat.
-Proof. 
-  apply T_If. 
-    apply T_False.
-    apply T_Zero.
-    apply T_Succ.
-      apply T_Zero.  
+Proof.
+  apply T_If.
+  apply T_False.
+  apply T_Zero.
+  apply T_Succ.
+  apply T_Zero.
 Qed.
 
 (** (Since we've included all the constructors of the typing relation
@@ -332,7 +370,8 @@ Example succ_hastype_nat__hastype_nat : forall t,
   |- tsucc t \in TNat ->
   |- t \in TNat.  
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros t Hts. inversion Hts. assumption.
+Qed.
 (** [] *)
 
 (* ###################################################################### *)
@@ -391,7 +430,20 @@ Proof with auto.
     SCase "t1 can take a step".
       inversion H as [t1' H1].
       exists (tif t1' t2 t3)...
-  (* FILL IN HERE *) Admitted.
+  Case "T_Succ".
+  inversion IHHT; clear IHHT; [ left; right | right];
+    try destruct t1; inversion H; try inversion H0;
+      eauto; try solve by inversion 3.
+  Case "T_Pred".
+  inversion IHHT; clear IHHT; right;
+    try destruct t1; inversion H; try inversion H0;
+      eauto; try solve by inversion 3.
+  Case "T_Iszero".
+  inversion IHHT; clear IHHT; right;
+    try destruct t1; inversion H; try inversion H0;
+      eauto; try solve by inversion 3.
+Qed.
+  
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_progress_informal)  *)
@@ -418,6 +470,7 @@ Proof with auto.
             - If [t1] itself can take a step, then, by [ST_If], so can
               [t].
 
+    (* SKIPPED *)
     (* FILL IN HERE *)
 [] *)
 
@@ -429,14 +482,14 @@ Proof with auto.
 (** **** Exercise: 1 star (step_review)  *)
 (** Quick review.  Answer _true_ or _false_.  In this language...
       - Every well-typed normal form is a value.
-
+          TRUE
       - Every value is a normal form.
-
+          TRUE
       - The single-step evaluation relation is
         a partial function (i.e., it is deterministic).
-
+          TRUE          
       - The single-step evaluation relation is a _total_ function.
-
+          FALSE
 *)
 (** [] *)
 
@@ -476,7 +529,10 @@ Proof with auto.
       SCase "ST_IfFalse". assumption.
       SCase "ST_If". apply T_If; try assumption.
         apply IHHT1; assumption.
-    (* FILL IN HERE *) Admitted.
+    Case "T_Succ". inversion HE; subst; clear HE...
+    Case "T_Pred". inversion HE; subst; clear HE; inversion HT...
+    Case "T_Iszero". inversion HE; subst; clear HE...
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_preservation_informal)  *)
@@ -506,6 +562,7 @@ Proof with auto.
              by the IH, [|- t1' \in Bool].  The [T_If] rule then gives us
              [|- if t1' then t2 else t3 \in T], as required.
 
+    (* SKIPPED *)
     (* FILL IN HERE *)
 [] *)
 
@@ -522,7 +579,10 @@ Theorem preservation' : forall t t' T,
   t ==> t' ->
   |- t' \in T.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros t t' T HT HE.
+  generalize dependent T.
+  step_cases (induction HE) Case; intros; inversion HT; try inversion H1; subst...
+Qed.
 (** [] *)
 
 (* ###################################################################### *)
@@ -540,7 +600,7 @@ Corollary soundness : forall t t' T,
   ~(stuck t').
 Proof. 
   intros t t' T HT P. induction P; intros [R S].
-  destruct (progress x T HT); auto.   
+  destruct (progress x T HT); auto.
   apply IHP.  apply (preservation x y T HT H).
   unfold stuck. split; auto.   Qed.
 
@@ -643,8 +703,8 @@ Theorem normalize_ex : exists e',
   (AMult (ANum 3) (AMult (ANum 2) (ANum 1))) / empty_state 
   ==>a* e'.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  eexists. normalize.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, optional (normalize_ex')  *)
@@ -654,7 +714,8 @@ Theorem normalize_ex' : exists e',
   (AMult (ANum 3) (AMult (ANum 2) (ANum 1))) / empty_state 
   ==>a* e'.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  eexists. normalize.
+Qed.
 (** [] *)
 
 
@@ -668,9 +729,17 @@ Proof.
     and [|- t' \in T], then [|- t \in T]?  If so, prove it.  If
     not, give a counter-example.  (You do not need to prove your
     counter-example in Coq, but feel free to do so if you like.)
+*)
 
-    (* FILL IN HERE *)
-[] *)
+Example subject_expasion_is_wrong :
+  (tif ttrue tzero ttrue ==> tzero) /\
+  (|- tzero \in TNat) /\
+  ~ (|- tif ttrue tzero ttrue \in TNat).
+Proof.
+  split; try split; auto.
+  intros H. try solve by inversion 2.
+Qed.
+(** [] *)
 
 
 
@@ -685,11 +754,14 @@ Proof.
    else "becomes false." If a property becomes false, give a
    counterexample.
       - Determinism of [step]
-
+          remains true
       - Progress
-
+          becomes false
+            |- tsucc ttrue \in TBool /\
+            ~ value (tsucc ttrue) /\
+            ~ exists t'. tsucc ttrue ==> t'
       - Preservation
-
+          remains true          
 [] *)
 
 (** **** Exercise: 2 stars (variation2)  *)
@@ -698,7 +770,14 @@ Proof.
            (tif ttrue t2 t3) ==> t3
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinisim of [step]
+          becomes false
+            tif ttrue ttrue tfalse ==> ttrue /\
+            tif ttrue ttrue tfalse ==> tfalse
+      - Progress
+          remains true
+      - Preservation
+          remains true
 [] *)
 
 (** **** Exercise: 2 stars, optional (variation3)  *)
@@ -708,7 +787,14 @@ Proof.
            (tif t1 t2 t3) ==> (tif t1 t2' t3)
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinisim of [step]
+          becomes false
+            tif ttrue (tpred (tsucc tzero)) tzero ==> tpred (tsucc tzero) /\
+            tif ttrue (tpred (tsucc tzero)) tzero ==> tif ttrue tzero tzero
+      - Progress
+          remains true
+      - Preservation
+          remains true
 [] *)
 
 (** **** Exercise: 2 stars, optional (variation4)  *)
@@ -717,7 +803,12 @@ Proof.
           (tpred tfalse) ==> (tpred (tpred tfalse))
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinisim of [step]
+          remains true
+      - Progress
+          remains true
+      - Preservation
+          remains true
 [] *)
 
 (** **** Exercise: 2 stars, optional (variation5)  *)
@@ -728,7 +819,18 @@ Proof.
    ]]
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinisim of [step]
+          remains true
+      - Progress
+          becomes false
+            (|- tif tzero tzero tzero \in TNat) /\
+            ~ value (tif tzero tzero tzero) /\
+            ~ exists t', (tif tzero tzero tzero) ==> t'
+      - Preservation
+          becomes false
+            (|- tif ttrue tzero tzero \in TNat) /\
+            tif ttrue tzero tzero ==> tzero /\
+            (|- tzero \in TBool)
 [] *)
 
 (** **** Exercise: 2 stars, optional (variation6)  *)
@@ -739,7 +841,18 @@ Proof.
    ]]
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-
+      - Determinisim of [step]
+          remains true
+      - Progress
+          becomes false
+            (|- tif (tpred tzero) tzero tzero \in TNat) /\
+            ~ value (tif (tpred tzero) tzero tzero) /\
+            ~ exists t', (tif (tpred tzero) tzero tzero) ==> t'
+      - Preservation
+          becomes false
+            (|- tif ttrue (tpred tzero) tzero \in TNat) /\
+            tif ttrue (tpred tzero) tzero ==> tpred tzero /\
+            (|- tpred tzero \in TBool)
 [] *)
 
 (** **** Exercise: 3 stars, optional (more_variations)  *)
@@ -756,7 +869,9 @@ Proof.
     achieve this simply by removing the rule from the definition of
     [step]?  Would doing so create any problems elsewhere? 
 
-(* FILL IN HERE *)
+(** YES. If we remove the [E_PredZero],
+    language cannot have progress properties any more. *)
+
 [] *)
 
 (** **** Exercise: 4 stars, advanced (prog_pres_bigstep)  *)
@@ -764,6 +879,7 @@ Proof.
     What are the appropriate analogs of the progress and preservation
     properties?
 
+(* SKIPPED *)
 (* FILL IN HERE *)
 [] *)
 
