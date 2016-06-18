@@ -9,16 +9,16 @@ If you have any questions or find problem in solution, please tell me via [issue
 **IMPORTANT: This repository is written based on Coq8.4pl6.**  
 You can download Coq8.4pl6 in [this link](https://coq.inria.fr/coq-84).
 
-## Table Of Content
+## Table Of Contents
 
-- Table Of Content
-- About Software Foundations
-- Table of Solutions
-  - Solutions grouped by road map
-    - Blue Arrow
-    - Others
-- Whole solutions
-- Author of this solutions
+- [Table Of Contents](#table-of-contents)
+- [About Software Foundations](#about-software-foundations)
+- [Table Of Solutions](#table-of-solutions)
+  - [Solutions Grouped By Road Map](#solutions-grouped-by-road-map)
+    - [Blue Arrow Of Road Map](#blue-arrow-of-road-map)
+    - [Others Of Road Map](#others-of-road-map)
+- [Whole Solutions](#whole-solutions)
+- [Author of this solutions](#Author of this solutions)
 
 ## About Software Foundations
 
@@ -37,9 +37,9 @@ Status columns in next tables have one of the following values.
 - Unsolved : File is not solved yet.
 - Unchecked : Not checked whether there is problem or not, yet.
 
-### Solutions grouped by road map
+### Solutions Grouped By Road Map
 
-#### Blue Arrow
+#### Blue Arrow Of Road Map
 
 | Section Title   | Coq File                           | HTML File                                | Status    | Updated at |
 |-----------------|------------------------------------|------------------------------------------|:---------:|-----------:|
@@ -72,7 +72,7 @@ Status columns in next tables have one of the following values.
 
 &#42; Not in blue arrow sequence, but necessary for this sequence.
 
-#### Others
+#### Others Of Road Map
 
 | Section Title   | Coq File                           | HTML File                                | Status    | Updated at |
 |-----------------|------------------------------------|------------------------------------------|:---------:|-----------:|
@@ -88,6 +88,8 @@ Status columns in next tables have one of the following values.
 | UseTactics      | [UseTactics.v](./UseTactics.v)     | [UseTactics.html](./UseTactics.html)     | Unchecked | 2016/06/10 |
 | UseAuto         | [UseAuto.v](./UseAuto.v)           | [UseAuto.html](./UseAuto.html)           | Unchecked | 2016/06/10 |
 | Norm            | [Norm.v](./Norm.v)                 | [Norm.html](Norm.html)                   | Unchecked | 2016/06/10 |
+
+## Whole Solutions
 
 ## Author of this solutions
 
