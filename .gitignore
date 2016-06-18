@@ -1,3 +1,7 @@
+# coq files
+.depend
 *.glob
 *.vo
+
+# emacs temp file
 *~
