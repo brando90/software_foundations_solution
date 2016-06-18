@@ -1,6 +1,6 @@
 # Software Foundation Solution
 
-Software Foundations Text Book Solution
+Software Foundations Textbook Solution
 
 There are some unsolved problems like 'informal proof'.
 
@@ -22,10 +22,10 @@ You can download Coq8.4pl6 in [this link](https://coq.inria.fr/coq-84).
 
 ## About Software Foundations
 
-Software Foundations is the text book for Software Foundations course in University of Pennsylvania (Pennsylvania, US) and Programming Language course in Seoul National University (Seoul, Korea) and ... (Give me additional info about).
+Software Foundations is the textbook for Software Foundations course in University of Pennsylvania (Pennsylvania, US) and Programming Language course in Seoul National University (Seoul, Korea) and ... (Give me additional info about).
 
-You can download latest version of the book in [this link](https://www.cis.upenn.edu/~bcpierce/sf/current/index.html).  
-**BUT Be careful, This repository based on version 3.2, not latest.** (*I will update in near days.*)
+You can download the latest version of the book in [this link](https://www.cis.upenn.edu/~bcpierce/sf/current/index.html).  
+**BUT Be careful, This repository based on version 3.2, not the latest.** (*I will update in near days.*)
 
 This book deals with not only automatic proof, but also mathematical formalization of softwares using [Coq](https://coq.inria.fr/) language. For more detail information, please check [the preface of book](https://www.cis.upenn.edu/~bcpierce/sf/current/Preface.html)
 
