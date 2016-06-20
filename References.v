@@ -395,6 +395,7 @@ Definition tseq t1 t2 :=
     execution where the first two [let]s have finished and the third
     one is about to begin. *)
 
+(* SKIPPED *)
 (* FILL IN HERE *)
 (** [] *)
 
@@ -451,7 +452,7 @@ Definition tseq t1 t2 :=
 >>
 would it behave the same? *)
 
-(* FILL IN HERE *)
+(* NO. This will trapped in infinite loops.*)
 (** [] *)
 
 (* ################################### *)
@@ -503,7 +504,16 @@ would it behave the same? *)
 (** **** Exercise: 1 star (type_safety_violation)  *)
 (** Show how this can lead to a violation of type safety. *)
 
-(* FILL IN HERE *)
+(*
+    If there is deallocation operator [dealloc], then following situation could be happend.
+<<
+    let a = ref 5 in
+    dealloc a;
+    let b = ref true in
+    a := 2;
+    !b
+>>
+*)
 (** [] *)
 
 (* ###################################################################### *)
@@ -963,7 +973,12 @@ Definition context := partial_map ty.
 (** **** Exercise: 2 stars (cyclic_store)  *)
 (** Can you find a term whose evaluation will create this particular
     cyclic store? *)
-
+Definition cyclic_store :=
+                      tseq (tref (tabs (Id 0) TNat
+                                       (tapp (tderef (tloc 1)) (tvar (Id 0)))))
+                           (tref (tabs (Id 0) TNat
+                                       (tapp (tderef (tloc 0)) (tvar (Id 0)))))
+.
 (** [] *)
 
 (** Both of these problems arise from the fact that our proposed
@@ -1181,7 +1196,14 @@ Definition store_well_typed (ST:store_ty) (st:store) :=
     different store typings [ST1] and [ST2] such that both
     [ST1 |- st] and [ST2 |- st]? *)
 
-(* FILL IN HERE *)
+Theorem store_not_unique : forall st,
+    st = (tderef (tloc 0))::nil ->
+    store_well_typed [TNat] st /\ store_well_typed [TArrow TNat TNat] st.
+Proof.
+  intros st Hst.
+  split; split; subst; eauto; intros;
+    inversion H; repeat constructor; try solve by inversion.
+Qed.
 (** [] *)
 
 (** We can now state something closer to the desired preservation
@@ -1645,6 +1667,7 @@ Qed.
     concentrating on the [T_App], [T_Deref], [T_Assign], and [T_Ref]
     cases. 
 
+(* SKIPPED *)
 (* FILL IN HERE *)
 [] *)
 
@@ -1871,24 +1894,43 @@ Qed.
     sure it gives the correct result when applied to the argument
     [4].) *)
 
+Definition factorial_loop : tm :=
+  tabs x TNat (tif0 (tvar x)
+                    (tnat 1)
+                    (tmult (tvar x) (tapp (tderef (tvar r)) (tpred (tvar x)))))
+.
+
 Definition factorial : tm :=
-  (* FILL IN HERE *) admit.
+  tabs s TNat
+       (tapp (tabs r (TRef (TArrow TNat TNat))
+                   (tseq (tassign (tvar r) factorial_loop)
+                         (tapp (tderef (tvar r)) (tvar s))))
+             (tref (tabs x TNat (tnat 0))))
+.
 
 Lemma factorial_type : empty; nil |- factorial \in (TArrow TNat TNat).
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  unfold factorial, factorial_loop.
+  apply T_Abs. eapply T_App...
+  apply T_Abs. eapply T_App...
+  apply T_Abs. eapply T_App...
+  apply T_Deref. apply T_Var. reflexivity.
+  apply T_Var...
+  eapply T_Assign... apply T_Var. reflexivity.
+  apply T_Abs. eapply T_If0...
+  apply T_Mult... eapply T_App...
+  apply T_Deref...
+Qed.
 
 (** If your definition is correct, you should be able to just
     uncomment the example below; the proof should be fully
     automatic using the [reduce] tactic. *)
 
-(* 
 Lemma factorial_4 : exists st, 
   tapp factorial (tnat 4) / nil ==>* tnat 24 / st.
 Proof.
-  eexists. unfold factorial. reduce.
+  eexists. unfold factorial. reduce. 
 Qed.
-*)
 (** [] *)
 
 (* ################################### *)

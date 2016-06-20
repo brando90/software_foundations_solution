@@ -62,9 +62,9 @@ Status columns in next tables have one of the following values.
 | Types           | [Types.v](./Types.v)               | [Types.html](./Types.html)               | Solved    | 2016/06/15 |
 | Stlc            | [Stlc.v](./Stlc.v)                 | [Stlc.html](./Stlc.html)                 | Solved    | 2016/06/15 |
 | StlcProp        | [StlcProp.v](./StlcProp.v)         | [StlcProp.html](./StlcProp.html)         | Solved    | 2016/06/15 |
-| MoreStlc        | [MoreStlc.v](./MoreStlc.v)         | [MoreStlc.html](./MoreStlc.html)         | Nothing   | 2016/06/10 |
-| Typechecking    | [Typechecking.v](./TypeChecking.v) | [Typechecking.html](./Typechecking.html) | Unchecked | 2016/06/10 |
-| References      | [References.v](./References.v)     | [References.html](./References.html)     | Unchecked | 2016/06/10 |
+| MoreStlc        | [MoreStlc.v](./MoreStlc.v)         | [MoreStlc.html](./MoreStlc.html)         | Solved   | 2016/06/18 |
+| Typechecking    | [Typechecking.v](./TypeChecking.v) | [Typechecking.html](./Typechecking.html) | Nothing | 2016/06/10 |
+| References      | [References.v](./References.v)     | [References.html](./References.html)     | Solved | 2016/06/20 |
 | Sub             | [Sub.v](./Sub.v)                   | [Sub.html](./Sub.html)                   | Unchecked | 2016/06/10 |
 | Records         | [Records.v](./Records.v)           | [Records.html](./Records.html)           | Unchecked | 2016/06/10 |
 | RecordSub       | [RecordSub.v](./RecordSub.v)       | [RecordSub.html](./RecordSub.html)       | Unchecked | 2016/06/10 |
