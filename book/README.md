@@ -18,7 +18,7 @@ You can download Coq8.4pl6 in [this link](https://coq.inria.fr/coq-84).
     - [Blue Arrow Of Road Map](#blue-arrow-of-road-map)
     - [Others Of Road Map](#others-of-road-map)
 - [Whole Solutions](#whole-solutions)
-- [Author of this solutions](#Author of this solutions)
+- [Author Of This Solutions](#author-of-this-solutions)
 
 ## About Software Foundations
 
@@ -91,7 +91,7 @@ Status columns in next tables have one of the following values.
 
 ## Whole Solutions
 
-## Author of this solutions
+## Author Of This Solutions
 
 Junyoung Clare Jang, Ailrun
 - [Github](https://github.com/Ailrun)
