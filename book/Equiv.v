@@ -1432,7 +1432,43 @@ Qed.
 (** Using [var_not_used_in_aexp], formalize and prove a correct version
     of [subst_equiv_property]. *)
 
-(** TODO **)
+
+Lemma aeval__var_not_used_in_aexp: forall a b i st,
+    var_not_used_in_aexp i b ->
+    st i = aeval st b ->
+    aeval st a = aeval st (subst_aexp i b a).
+Proof.
+  induction a; intros;
+    simpl;
+    try rewrite <- IHa1; try rewrite <- IHa2;
+      try destruct (beq_idP i0 i); subst;
+      try reflexivity; try assumption.
+Qed.
+
+Theorem subst_equiv_property_correct: forall i1 i2 a1 a2,
+    var_not_used_in_aexp i1 a1 ->
+    cequiv (i1 ::= a1;; i2 ::= a2)
+           (i1 ::= a1;; i2 ::= subst_aexp i1 a1 a2).
+Proof.
+  intros i1 i2 a1 a2 Hvar.
+  split; intros H; inversion H; subst.
+  - apply E_Seq with st'0.
+    + assumption.
+    + inversion H5; subst. constructor.
+      rewrite <- aeval__var_not_used_in_aexp;
+        try reflexivity; try assumption.
+      * inversion H2; subst.
+        rewrite aeval_weakening; try assumption.
+        unfold t_update. rewrite <- beq_id_refl. reflexivity.
+  - apply E_Seq with st'0.
+    + assumption.
+    + inversion H5; subst. constructor.
+      rewrite <- aeval__var_not_used_in_aexp;
+        try reflexivity; try assumption.
+      * inversion H2; subst.
+        rewrite aeval_weakening; try assumption.
+        unfold t_update. rewrite <- beq_id_refl. reflexivity.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (inequiv_exercise)  *)
