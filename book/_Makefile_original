@@ -232,4 +232,4 @@ printenv:
 #
 # END OF WARNING
 
-include .depend
+#include .depend
